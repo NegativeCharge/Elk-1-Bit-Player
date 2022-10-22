@@ -42,93 +42,88 @@ GUARD   &8000
         LDX     #&00                                            ; Clear X
 
 .init        
-        LDA     #LO(sample_data_start)
-        STA     sample_pointer+0
+        LDA     #LO(sample_data_start)  ; 3
+        STA     sample_pointer+0        ; 3 (ZP)
 
-        LDA     #HI(sample_data_start)
-        STA     sample_pointer+1
+        LDA     #HI(sample_data_start)  ; 3
+        STA     sample_pointer+1        ; 3 (ZP)
 
 .mainLoop
-        LDA     (sample_pointer),y
-        STA     pitch
+        LDA     (sample_pointer),y      ; 5 (+1 if crosses page boundary)
+        STA     pitch                   ; 3 (ZP)
 
-        LDA     #HI(sample_data_end)
-        CMP     sample_pointer+1
-        BNE     continue
+        LDA     #HI(sample_data_end)    ; 3
+        CMP     sample_pointer+1        ; 3
+        BNE     continue                ; 2 (3 if branch not taken)
 
-        LDA     #LO(sample_data_end)
-        CMP     sample_pointer
-        BNE     continue
+        LDA     #LO(sample_data_end)    ; 3
+        CMP     sample_pointer          ; 3
+        BNE     continue                ; 2 (3 if branch not taken)
 
-        JMP     playback_end
+        JMP     playback_end            ; 3 (Absolute)
 
 .continue
-        LDX     #8
+        LDX     #&08                    ; 2 (Immediate)
 
 .byteLoop
+        CMP     #last_state             ; 3 (ZP)
+        BEQ     rotate_bits             ; 2 (3 if branch not taken)
+
+        STA     last_state              ; 3 (ZP)
+
         ; Test LSB value
-        LDA     #&01
-        BIT     pitch
-        BNE     turn_speaker_on
+        LDA     #&01                    ; 2 (Immediate)
+        BIT     pitch                   ; 3 (ZP)
+        BNE     turn_speaker_on         ; 2 (3 if branch not taken)
 
-        CMP     #last_state
-        BEQ     rotate_bits
+        LDA     speaker_off             ; 3 (ZP)
+        STA     SHEILA_MISC_CONTROL     ; 4 (Absolute)
 
-        STA     last_state
-        LDA     speaker_off
-        STA     SHEILA_MISC_CONTROL
-
-        JMP     rotate_bits
+        JMP     rotate_bits             ; 3 (Absolute)
 
 .turn_speaker_on
-        CMP     #last_state
-        BEQ     rotate_bits
+        LDA     speaker_on              ; 3 (ZP)
+        STA     SHEILA_MISC_CONTROL     ; 4 (Absolute)
 
-        STA     last_state
-        LDA     speaker_on
-        STA     SHEILA_MISC_CONTROL
+        BIT     pitch                   ; Waste 3 cycles
 
 .rotate_bits
         ; 8-bit rotate right Value
-        LDA     pitch
-        LSR     A
-        ROR     pitch
+        LDA     pitch                   ; 3 (ZP)
+        LSR     A                       ; 2
+        ROR     pitch                   ; 5 (ZP)
 
-        DEX
-        BEQ     byteLoopDone
-        JMP     byteLoop
+        DEX                             ; 2
+        BEQ     byteLoopDone            ; 2 (3 if branch not taken)
+        JMP     byteLoop                ; 3 (Absolute)
 
 .byteLoopDone
-        LDX     #DELAY
+        LDX     #DELAY                  ; 2 (Immediate)
 .delayLoop
-        DEX                                                     ; Decrement X by 1
-        BNE     delayLoop                                       ; Loop if not zero
+        DEX                             ; 2 - Decrement X by 1
+        BNE     delayLoop               ; 2 (3 if branch not taken) - Loop if not zero
 
-        CLC
-        LDA     sample_pointer
-        ADC     #&01
-        STA     sample_pointer+0
-        LDA     sample_pointer+1
-        ADC     #&00
-        STA     sample_pointer+1
+        CLC                             ; 2 - Clear carry
+        LDA     sample_pointer          ; 3 - Increment 16-bit sample pointer
+        ADC     #&01                    ; 2
+        STA     sample_pointer+0        ; 3
+        LDA     sample_pointer+1        ; 3
+        ADC     #&00                    ; 2
+        STA     sample_pointer+1        ; 3
 
-        JMP     mainLoop
+        JMP     mainLoop                ; 3 (Absolute)
 
 .playback_end
 {
-        LDY     speaker_off
-        STY     SHEILA_MISC_CONTROL
+        LDY     speaker_off                             ; 3 - Turn off speaker
+        STY     SHEILA_MISC_CONTROL                     ; 4
 
-        LDY     ula_control_register_previous_value
-        STY     control_register_value                          ; Store y in value to be fed to ULA control register
+        LDY     ula_control_register_previous_value     ; 3 - Reset ULA control register to initial value
+        STY     control_register_value                  ; 4 - Store y in value to be fed to ULA control register
                 
-        CLI
-        RTS
+        CLI                                             ; 2 - Clear interrupt disable
+        RTS                                             ; 6
 }
-
-.setUlaControlRegister
-        STA     SHEILA_MISC_CONTROL
-        RTS
 
 .sample_data_start
         INCBIN ".\samples\exp01.bin"
