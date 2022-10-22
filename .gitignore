@@ -1,5 +1,8 @@
 !/converter/8BitUnsigned21BitSample
 /converter/8BitUnsigned21BitSample/*
+!/converter/8BitUnsigned21BitSample/*.vcxproj
+!/converter/8BitUnsigned21BitSample/*.h
+!/converter/8BitUnsigned21BitSample/*.cpp
 !/converter/8BitUnsigned21BitSample/x64/
 !/converter/8BitUnsigned21BitSample/x64/Release
 /converter/8BitUnsigned21BitSample/x64/Release/*
