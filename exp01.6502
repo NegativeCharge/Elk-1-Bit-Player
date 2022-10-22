@@ -1,0 +1,158 @@
+\ Constants
+SHEILA_COUNTER          = &FE06
+SHEILA_MISC_CONTROL     = &FE07
+OSBYTE                  = &FFF4
+
+DELAY = 1
+
+\ Zero Page
+ORG     &7F
+ 
+.pitch                                  SKIP 1
+.sample_pointer                         SKIP 2
+.control_register_value                 SKIP 1
+.speaker_on                             SKIP 1
+.speaker_off                            SKIP 1
+.last_state                             SKIP 1
+.ula_control_register_previous_value    SKIP 1
+
+\ Main Entry Point
+ORG     &1100
+GUARD   &8000
+
+.player_start
+        LDA     #&0F                                            ; Flush selected wait class
+        LDX     #&00                                            ; All waits flushed
+        JSR     OSBYTE
+
+        SEI                                                     ; Set interrupt disable
+        LDA     #&F2                                            ; Read RAM copy of location &FE07 (ULA SHEILA Misc. Control)
+        LDX     #&00
+        LDY     #&FF
+        JSR     OSBYTE                                          ; Old value returned in X
+
+        STX     ula_control_register_previous_value             ; Store old value
+        TXA
+        AND     #&F8                                            ; Mask - 11111000
+        STA     speaker_off                                     ; Store previous FE07 values for CAPS LOCK LED, CASSETTE MOTOR, and DISPLAY MODE 
+        ORA     #&02                                            ; Switch on sound generation - 00000010
+        STA     speaker_on                                      ; Store previous FE07 value with sound generation enabled
+        LDA     #&00
+        STA     SHEILA_COUNTER                                  ; Zero the ULA SHEILA counter (FE06), creating a toggle speaker (inaudible frequency)
+        LDX     #&00                                            ; Clear X
+
+.init        
+        LDA     #LO(sample_data_start)
+        STA     sample_pointer+0
+
+        LDA     #HI(sample_data_start)
+        STA     sample_pointer+1
+
+.mainLoop
+        LDA     (sample_pointer),y
+        STA     pitch
+
+        LDA     #HI(sample_data_end)
+        CMP     sample_pointer+1
+        BNE     continue
+
+        LDA     #LO(sample_data_end)
+        CMP     sample_pointer
+        BNE     continue
+
+        JMP     playback_end
+
+.continue
+        LDX     #8
+
+.byteLoop
+        ; Test LSB value
+        LDA     #&01
+        BIT     pitch
+        BNE     turn_speaker_on
+
+        CMP     #last_state
+        BEQ     rotate_bits
+
+        STA     last_state
+        LDA     speaker_off
+        STA     SHEILA_MISC_CONTROL
+
+        JMP     rotate_bits
+
+.turn_speaker_on
+        CMP     #last_state
+        BEQ     rotate_bits
+
+        STA     last_state
+        LDA     speaker_on
+        STA     SHEILA_MISC_CONTROL
+
+.rotate_bits
+        ; 8-bit rotate right Value
+        LDA     pitch
+        LSR     A
+        ROR     pitch
+
+        DEX
+        BEQ     byteLoopDone
+        JMP     byteLoop
+
+.byteLoopDone
+        LDX     #DELAY
+.delayLoop
+        DEX                                                     ; Decrement X by 1
+        BNE     delayLoop                                       ; Loop if not zero
+
+        CLC
+        LDA     sample_pointer
+        ADC     #&01
+        STA     sample_pointer+0
+        LDA     sample_pointer+1
+        ADC     #&00
+        STA     sample_pointer+1
+
+        JMP     mainLoop
+
+.playback_end
+{
+        LDY     speaker_off
+        STY     SHEILA_MISC_CONTROL
+
+        LDY     ula_control_register_previous_value
+        STY     control_register_value                          ; Store y in value to be fed to ULA control register
+                
+        CLI
+        RTS
+}
+
+.setUlaControlRegister
+        STA     SHEILA_MISC_CONTROL
+        RTS
+
+.sample_data_start
+        INCBIN ".\samples\exp01.bin"
+.sample_data_end
+    
+.player_end
+SAVE "PLAY",player_start,player_end
+
+\ ******************************************************************
+\ *	Memory Info
+\ ******************************************************************
+
+PRINT "---------------"
+PRINT "PLAYER"
+PRINT "---------------"
+PRINT "CODE size =", ~player_end-player_start
+PRINT "---------------"
+PRINT "HIGH WATERMARK =", ~P%
+PRINT "FREE =", ~player_start+player_end
+PRINT "---------------"
+
+\ ******************************************************************
+\ * Supporting Files
+\ ******************************************************************
+
+PUTBASIC "LOADER","LOADER"
+PUTFILE "BOOT","!BOOT",&FFFF
