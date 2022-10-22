@@ -1,1 +1,1 @@
-BeebAsm.exe -v -i .\exp01.6502 -do .\discs\1-exp01.ssd -opt 3
+BeebAsm.exe -v -i .\exp01.6502 -do .\discs\exp01.ssd -opt 3
