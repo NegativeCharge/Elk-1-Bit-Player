@@ -126,7 +126,7 @@ GUARD   &8000
 }
 
 .sample_data_start
-        INCBIN ".\samples\exp01.bin"
+        INCBIN ".\samples\exp01-1.bin"
 .sample_data_end
     
 .player_end
