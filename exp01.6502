@@ -48,7 +48,7 @@ GUARD   &8000
         LDA     #HI(sample_data_start)  ; 3
         STA     sample_pointer+1        ; 3 (ZP)
 
-.mainLoop
+.main_loop
         LDA     (sample_pointer),y      ; 5 (+1 if crosses page boundary)
         STA     pitch                   ; 3 (ZP)
 
@@ -65,7 +65,7 @@ GUARD   &8000
 .continue
         LDX     #&08                    ; 2 (Immediate)
 
-.byteLoop
+.byte_loop
         CMP     #last_state             ; 3 (ZP)
         BEQ     rotate_bits             ; 2 (3 if branch not taken)
 
@@ -94,14 +94,14 @@ GUARD   &8000
         ROR     pitch                   ; 5 (ZP)
 
         DEX                             ; 2
-        BEQ     byteLoopDone            ; 2 (3 if branch not taken)
-        JMP     byteLoop                ; 3 (Absolute)
+        BEQ     byte_loopDone           ; 2 (3 if branch not taken)
+        JMP     byte_loop               ; 3 (Absolute)
 
-.byteLoopDone
+.byte_loopDone
         LDX     #DELAY                  ; 2 (Immediate)
-.delayLoop
+.delay_loop
         DEX                             ; 2 - Decrement X by 1
-        BNE     delayLoop               ; 2 (3 if branch not taken) - Loop if not zero
+        BNE     delay_loop              ; 2 (3 if branch not taken) - Loop if not zero
 
         CLC                             ; 2 - Clear carry
         LDA     sample_pointer          ; 3 - Increment 16-bit sample pointer
@@ -111,7 +111,7 @@ GUARD   &8000
         ADC     #&00                    ; 2
         STA     sample_pointer+1        ; 3
 
-        JMP     mainLoop                ; 3 (Absolute)
+        JMP     main_loop               ; 3 (Absolute)
 
 .playback_end
 {
